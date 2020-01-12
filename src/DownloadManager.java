@@ -10,7 +10,7 @@ class DownloadManager {
     private final long m_chunkSize = 4096;
     private Metadata m_metadata;
     private String m_metadataFile;
-    private int m_maximumConcurrentConnections;
+    private int m_maximumConcurrentConnections = 0;
     private ArrayList<Thread> m_concurrentConnections;
     private ArrayList<ArrayList<DownloadBatch>> m_batchesToDownload;
     private String m_downloadURL;
@@ -22,9 +22,17 @@ class DownloadManager {
         m_concurrentConnections = new ArrayList<>();
     }
 
-    //TODO - add logic for calculating maximum concurrent in this case
     DownloadManager(String downloadURL){
         m_downloadURL = downloadURL;
+        m_concurrentConnections = new ArrayList<>();
+    }
+
+    //TODO: FIX THIS!
+    private void setMaximumConnectionsByFileSize(){
+        long ConnectionCountUpperBound = m_metadata.downloadSize / (m_chunkSize * 500);
+        if(m_maximumConcurrentConnections == 0 || m_maximumConcurrentConnections > ConnectionCountUpperBound){
+            m_maximumConcurrentConnections = (int)ConnectionCountUpperBound;
+        }
     }
 
     private void initializeFiles() throws ClassNotFoundException{
@@ -42,17 +50,18 @@ class DownloadManager {
                 ObjectInputStream metadataStream = new ObjectInputStream(new FileInputStream(new File(m_metadataFile)));
                 m_metadata = (Metadata) metadataStream.readObject();
             }
+            setMaximumConnectionsByFileSize();
             getDownloadBatches();
             int index = 1;
-//            for(ArrayList<DownloadBatch> _list : m_batchesToDownload){
-//                System.out.println("-----------------------------------");
-//                System.out.println("LIST NUMBER " + index);
-//                System.out.println("-----------------------------------");
-//                for(DownloadBatch batch : _list){
-//                    System.out.println("START " + batch.m_startingPoint + " END " + batch.m_endingPoint);
-//                }
-//                index++;
-//            }
+            for(ArrayList<DownloadBatch> _list : m_batchesToDownload){
+                System.out.println("-----------------------------------");
+                System.out.println("LIST NUMBER " + index);
+                System.out.println("-----------------------------------");
+                for(DownloadBatch batch : _list){
+                    System.out.println("START " + batch.m_startingPoint + " END " + batch.m_endingPoint);
+                }
+                index++;
+            }
         }
         catch (IOException e){
             System.err.println("Download Failed. Failed To Create File.");
@@ -70,9 +79,8 @@ class DownloadManager {
                 numberOfChunks += 1;
             }
             m_metadata = new Metadata((int)downloadSize,numberOfChunks);
-//            System.out.println("DOWNLOAD SIZE " + m_metadata.downloadSize);
-//            System.out.println("number of chunks " + m_metadata.batchesDownloaded.length);
-
+            System.out.println("DOWNLOAD SIZE " + m_metadata.downloadSize);
+            System.out.println("number of chunks " + m_metadata.chunksDownloaded.length);
         }
         catch (IOException e){
             System.err.println(e.getMessage());
@@ -88,28 +96,37 @@ class DownloadManager {
         ArrayList<DownloadBatch> initialBatches = new ArrayList<>();
         long startPointer = 0;
         long endPointer = 0;
-        while(endPointer < m_metadata.batchesDownloaded.length){
-            while (m_metadata.batchesDownloaded[(int)startPointer]){
+        while(endPointer < m_metadata.chunksDownloaded.length){
+            while (m_metadata.chunksDownloaded[(int)startPointer] && endPointer <= m_metadata.chunksDownloaded.length - 1){
                 startPointer += 1;
                 endPointer += 1;
             }
-            while(!m_metadata.batchesDownloaded[(int)endPointer]){
-                if(endPointer == m_metadata.batchesDownloaded.length - 1){
-                    endPointer +=1;
+            while(!m_metadata.chunksDownloaded[(int)endPointer] && endPointer <= m_metadata.chunksDownloaded.length - 1){
+                endPointer += 1;
+                if(endPointer == m_metadata.chunksDownloaded.length - 1){
                     break;
                 }
-                endPointer += 1;
             }
-            initialBatches.add(new DownloadBatch(startPointer, endPointer - 1));
-            endPointer += 1;
-            startPointer = endPointer;
+            if(startPointer < m_metadata.chunksDownloaded.length && endPointer < m_metadata.chunksDownloaded.length){
+                System.out.println("3");
+                if(!m_metadata.chunksDownloaded[(int)startPointer]){
+                    initialBatches.add(new DownloadBatch(startPointer, endPointer));
+                    endPointer += 1;
+                    startPointer = endPointer;
+                }
+                if(endPointer == m_metadata.chunksDownloaded.length - 1){
+                    break;
+                }
+            }
         }
         initializeBatchListForThreads(initialBatches);
     }
 
     private void initializeBatchListForThreads(ArrayList<DownloadBatch> batchesList){
         m_batchesToDownload = new ArrayList<>();
-        int chunksPerThread = m_metadata.batchesDownloaded.length / m_maximumConcurrentConnections;
+        int totalChunks = m_metadata.chunksDownloaded.length - m_metadata.chunksDownloadedAlready;
+        int chunksPerThread = totalChunks / m_maximumConcurrentConnections;
+        System.out.println("chunks per thread: " + chunksPerThread);
         int currentChunkCount = 0;
         ArrayList<DownloadBatch> currentList = new ArrayList<>();
         while(!batchesList.isEmpty()){
@@ -151,10 +168,10 @@ class DownloadManager {
 
     void downloadFile() throws InterruptedException, ClassNotFoundException{
         initializeFiles();
-        System.out.println("=====================================================================================");
-        System.out.println("Downloading file " + m_fileName + " using " + m_maximumConcurrentConnections + " concurrent connections");
-        System.out.println("=====================================================================================");
-        System.out.println("TOTAL FILE SIZE: " + m_metadata.downloadSize);
+//        System.out.println("=====================================================================================");
+//        System.out.println("Downloading file " + m_fileName + " using " + m_maximumConcurrentConnections + " concurrent connections");
+//        System.out.println("=====================================================================================");
+//        System.out.println("TOTAL FILE SIZE: " + m_metadata.downloadSize);
         if (m_metadata.downloadSize == -1) {
             System.err.println("Download Failed");
         }
@@ -185,12 +202,13 @@ class DownloadManager {
     }
 
     private String getDownloadFinishState(){
-        System.out.println(m_metadata.bytesDownloadedAlready);
-        if(m_metadata.getPercentDownloaded() == 100){
-            File file = new File(m_metadataFile);
-            file.delete();
-            return "Succeeded";
+        for(boolean downloaded : m_metadata.chunksDownloaded){
+            if(!downloaded){
+                return "Failed";
+            }
         }
-        return "Failed";
+        File file = new File(m_metadataFile);
+        file.delete();
+        return "Succeeded";
     }
 }

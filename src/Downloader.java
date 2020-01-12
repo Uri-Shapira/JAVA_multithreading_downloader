@@ -6,7 +6,7 @@ public class Downloader implements Runnable{
 
     private final int m_chunk = 4096;
     private ArrayList<DownloadBatch> m_batchesToDownload;
-    private String m_fileToDownload;
+    private String m_downloadURL;
     private String m_metadataFile;
     private Metadata m_metadata;
     private String m_downloadedFile;
@@ -14,7 +14,7 @@ public class Downloader implements Runnable{
     public Exception threadError = null;
 
     Downloader(String fileToDownload, String savedFileName, ArrayList<DownloadBatch> batchesToDownload, Metadata metadata, String metadataFile){
-        m_fileToDownload = fileToDownload;
+        m_downloadURL = fileToDownload;
         m_downloadedFile = savedFileName;
         m_metadataFile = metadataFile;
         m_metadata = metadata;
@@ -27,22 +27,21 @@ public class Downloader implements Runnable{
         RandomAccessFile writeFile = null;
         ObjectOutputStream metadataWriter = null;
         try{
-            System.out.println("[" + Thread.currentThread().getId() + "] Started Running");
-            URL url = new URL(m_fileToDownload);
-            HTTPUrlConnection = (HttpURLConnection) url.openConnection();
+            URL url = new URL(m_downloadURL);
             metadataWriter = new ObjectOutputStream(new FileOutputStream(new File(m_metadataFile)));
             for(DownloadBatch batch : m_batchesToDownload){
+                HTTPUrlConnection = (HttpURLConnection) url.openConnection();
                 m_currentPosition = batch.m_startingPoint;
-                long startingPoint = batch.m_startingPoint * m_chunk + 1;
+                long startingPoint = batch.m_startingPoint * m_chunk;
                 if(batch.m_startingPoint == 0){
                     startingPoint = 0;
                 }
-                System.out.println("[" + Thread.currentThread().getId() + "] START " + startingPoint + " " + batch.m_startingPoint);
-                long endPoint = (batch.m_endingPoint + 1) * m_chunk;
-                if(batch.m_endingPoint == m_metadata.batchesDownloaded.length - 1){
+                long endPoint = (batch.m_endingPoint + 1) * m_chunk - 1;
+                if(batch.m_endingPoint == m_metadata.chunksDownloaded.length - 1){
                     endPoint = m_metadata.downloadSize;
                 }
-                System.out.println("[" + Thread.currentThread().getId() + "] END " + endPoint + " " + batch.m_endingPoint);
+                System.out.println("[" + Thread.currentThread().getId() + "] Started Downloading Range ("
+                        + startingPoint + "-" + endPoint +") From:\n" + m_downloadURL);
                 HTTPUrlConnection.setRequestProperty("Range", "bytes=" + startingPoint + "-" + endPoint);
                 bufferedInputStream = new BufferedInputStream(HTTPUrlConnection.getInputStream());
                 writeFile = new RandomAccessFile(m_downloadedFile, "rw");
@@ -51,19 +50,21 @@ public class Downloader implements Runnable{
                 byte[] bufferedData = new byte[m_chunk];
                 while(m_currentPosition <= batch.m_endingPoint){
                     read = bufferedInputStream.read(bufferedData,0, m_chunk);
-                    if(read < 4096){
-                        System.out.println("[" +Thread.currentThread().getId() + "] index: " + m_currentPosition + " read amount: " + read + " end index " + batch.m_endingPoint + " end bytes " + endPoint);
-                    }
+//                    if(read < 4096){
+//                        System.out.println("[" +Thread.currentThread().getId() + "] index: " + m_currentPosition + " read amount: " + read + " end index " + batch.m_endingPoint + " end bytes " + endPoint);
+//                    }
                     if(read == -1){
                         break;
                     }
                     else{
                         writeFile.write(bufferedData,0,read);
-                        m_metadata.batchesDownloaded[(int)m_currentPosition] = true;
+                        m_metadata.chunksDownloaded[(int)m_currentPosition] = true;
+                        m_metadata.chunksDownloadedAlready += 1;
                         m_currentPosition += 1;
                         m_metadata.bytesDownloadedAlready += read;
                     }
                 }
+                HTTPUrlConnection.disconnect();
             }
             metadataWriter.writeObject(m_metadata);
             System.out.println("[" + Thread.currentThread().getId() + "] Finished downloading.");
