@@ -8,9 +8,9 @@ class Metadata implements Serializable {
     int bytesDownloadedAlready;
     int chunksDownloadedAlready;
 
-    Metadata(int size, int chunkCount) {
-        chunksDownloaded = new boolean[chunkCount];
-        downloadSize = size;
+    Metadata(int i_size, int i_chunkCount) {
+        chunksDownloaded = new boolean[i_chunkCount];
+        downloadSize = i_size;
         bytesDownloadedAlready = 0;
         chunksDownloadedAlready = 0;
     }
