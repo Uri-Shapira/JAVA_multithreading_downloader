@@ -7,9 +7,9 @@ import java.util.ArrayList;
 public class IdcDm {
 
     public static void main(String[] args) throws ClassNotFoundException, InterruptedException, IOException {
-        initializeDownloader(args);
-//        test_metadata();
-        }
+//        initializeDownloader(args);
+        test_metadata();
+    }
 
     private static void initializeDownloader(String[] i_applicationInputs)throws ClassNotFoundException, InterruptedException{
         if(i_applicationInputs.length < 1 || i_applicationInputs.length > 2){
@@ -53,7 +53,7 @@ public class IdcDm {
     }
 
     private static void test_metadata() throws IOException, ClassNotFoundException{
-        String file = "C:\\Users\\URISHAP\\Desktop\\netoworks_lab\\CentOS-6.10-x86_64-netinstall_metadata";
+        String file = "C:\\Users\\URISHAP\\Desktop\\netoworks_lab\\Mario1_500_metadata";
         FileInputStream fis = new FileInputStream(new File(file));
         ObjectInputStream ois = new ObjectInputStream(fis);
         Metadata status = (Metadata) ois.readObject();

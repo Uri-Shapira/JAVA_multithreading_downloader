@@ -45,7 +45,7 @@ public class Downloader implements Runnable{
                 int read;
                 byte[] bufferedData = new byte[m_chunk];
                 long currentPoint = startingPoint;
-                    while(currentPoint < endPoint){
+                while(currentPoint < endPoint){
 //                    if(currentIndex == m_metadata.chunksDownloaded.length - 1){
 //                        int toRead = (int)(endPoint - currentPoint);
 //                        read = bufferedInputStream.read(bufferedData,0, toRead);
@@ -89,4 +89,5 @@ public class Downloader implements Runnable{
 
         }
     }
+
 }

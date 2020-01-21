@@ -1,8 +1,9 @@
 import java.io.*;
 import java.util.concurrent.BlockingQueue;
 import java.nio.file.*;
+import static java.nio.file.StandardCopyOption.ATOMIC_MOVE;
 
-class Writer implements Runnable {
+public class Writer implements Runnable {
 
     private Metadata m_metadata;
     private BlockingQueue<WriteChunk> m_writingQueue;
@@ -33,12 +34,13 @@ class Writer implements Runnable {
                         m_metadata.chunksDownloaded[chunkToWrite.m_metadataIndex] = true;
                         m_metadata.chunksDownloadedAlready += 1;
                         m_metadata.bytesDownloadedAlready += chunkToWrite.m_chunkSize;
-                        metadataWriter = new ObjectOutputStream(new FileOutputStream(new File(m_metadataFile)));
+                        metadataWriter = new ObjectOutputStream(new FileOutputStream("temp_file"));
                         metadataWriter.writeObject(m_metadata);
                         metadataWriter.close();
-
+                        Files.move(new File("temp_file").toPath(), new File(m_metadataFile).toPath(), ATOMIC_MOVE);
                     }
                     catch (IOException e){
+                        System.err.println(e.getMessage());
                         System.err.println("Unable to write to output file. Download failed!");
                         System.exit(1);
                     }
@@ -52,7 +54,6 @@ class Writer implements Runnable {
                                 System.exit(1);
                             }
                         }
-
                     }
                 }
             }
