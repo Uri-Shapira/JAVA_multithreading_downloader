@@ -6,12 +6,11 @@ import java.util.ArrayList;
 
 public class IdcDm {
 
-    public static void main(String[] args) throws ClassNotFoundException, InterruptedException, IOException {
-//        initializeDownloader(args);
-        test_metadata();
+    public static void main(String[] args) throws ClassNotFoundException {
+        initializeDownloader(args);
     }
 
-    private static void initializeDownloader(String[] i_applicationInputs)throws ClassNotFoundException, InterruptedException{
+    private static void initializeDownloader(String[] i_applicationInputs)throws ClassNotFoundException {
         if(i_applicationInputs.length < 1 || i_applicationInputs.length > 2){
             System.err.println("Incorrect inputs given. IdcDm can only receive one or two inputs. Download failed!");
             System.exit(1);
@@ -52,26 +51,28 @@ public class IdcDm {
         return urlList;
     }
 
-    private static void test_metadata() throws IOException, ClassNotFoundException{
-        String file = "C:\\Users\\URISHAP\\Desktop\\netoworks_lab\\Mario1_500_metadata";
-        FileInputStream fis = new FileInputStream(new File(file));
-        ObjectInputStream ois = new ObjectInputStream(fis);
-        Metadata status = (Metadata) ois.readObject();
-        BufferedWriter writer = new BufferedWriter(new FileWriter("TEST_FILE_2"));
-        for(int i = 0; i < status.chunksDownloaded.length; i++){
-            long current = i * 4096;
-            writer.write("chunk " + current + " downloaded: " + status.chunksDownloaded[i] + "\n");
-        }
-        System.out.println("total status size " + status.chunksDownloaded.length);
-        ois.close();
-        writer.flush();
-        writer.close();
-    }
+//    private static void test_metadata() throws IOException, ClassNotFoundException{
+//        String file = "C:\\Users\\URISHAP\\Desktop\\netoworks_lab\\CentOS-6.10-x86_64-netinstall_metadata";
+//        FileInputStream fis = new FileInputStream(new File(file));
+//        ObjectInputStream ois = new ObjectInputStream(fis);
+//        Metadata status = (Metadata) ois.readObject();
+//        BufferedWriter writer = new BufferedWriter(new FileWriter("TEST_FILE_2"));
+//        for(int i = 0; i < status.chunksDownloaded.length; i++){
+//            long current = i * 4096;
+//            writer.write("chunk " + current + " downloaded: " + status.chunksDownloaded[i] + "\n");
+//        }
+//        System.out.println("total status size " + status.chunksDownloaded.length);
+//        ois.close();
+//        writer.flush();
+//        writer.close();
+//    }
 
 }
 
 /* TODO:
-
+ *a. Added set timeout in DownloadReader (see if this is necessary / document)
+ * The process cannot access the file because it is being used by another process
  *1. Add decision about whether to go for maximum concurrent connections or less based on file size
- * 5. throws classNotFound exception - not good!
+ *2. throws classNotFound exception - not good!
+ * 5. exception from one of the threads? exit whole application
  */

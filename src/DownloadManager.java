@@ -71,22 +71,13 @@ class DownloadManager {
             }
             setMaximumConnectionsByFileSize();
             getDownloadBatches();
-//            int index = 1;
-//            for(ArrayList<ReadBatch> _list : m_batchesToDownload){
-//                System.out.println("-----------------------------------");
-//                System.out.println("LIST NUMBER " + index);
-//                System.out.println("-----------------------------------");
-//                for(ReadBatch batch : _list){
-//                    System.out.println("START " + batch.m_startingPoint + " END " + batch.m_endingPoint);
-//                }
-//                index++;
-//            }
         }
         catch (IOException e){
             System.err.println("Download Failed. Failed To Create File.");
             System.exit(1);
         }
     }
+
     private void getDownloadSize() throws MalformedURLException {
         URL url = new URL(m_downloadURLs.get(0));
         HttpURLConnection connection = null;
@@ -111,6 +102,7 @@ class DownloadManager {
             m_metadata = new Metadata((int)downloadSize,numberOfChunks);
         }
         catch (IOException e){
+            System.out.print("ERROR IS ON DOWNLOAD MANAGER 105");
             System.err.println(e.getMessage());
         }
         finally {
@@ -200,12 +192,15 @@ class DownloadManager {
     void downloadFile() throws ClassNotFoundException{
         System.out.println("Initializing Download...");
         initializeFiles();
-        System.out.println("Downloading using " + m_maximumConcurrentConnections + " connections...");
+        long startTime = System.currentTimeMillis();
+        String startingMessage = "Downloading using " + m_maximumConcurrentConnections + " connection";
+        startingMessage += m_maximumConcurrentConnections == 1 ? "..." : "s...";
+        System.out.println(startingMessage);
         BlockingQueue<WriteChunk> writingQueue = new ArrayBlockingQueue<>(m_metadata.chunksDownloaded.length);
-        Thread writerThread = new Thread(new Writer(m_metadata, m_fileName, m_metadataFile, writingQueue));
+        Thread writerThread = new Thread(new DownloadWriter(m_metadata, m_fileName, m_metadataFile, writingQueue));
         writerThread.start();
         for(ArrayList<ReadBatch> threadBatches : m_batchesToDownload){
-            Thread thread = new Thread(new Downloader(getRandomURL(), threadBatches, m_metadata,
+            Thread thread = new Thread(new DownloadReader(getRandomURL(), threadBatches, m_metadata,
                     m_chunkSize, writingQueue));
             m_concurrentConnections.add(thread);
             thread.start();
@@ -230,6 +225,8 @@ class DownloadManager {
                 System.out.println("Downloaded " + percentage + "%");
             }
         }
+        long executionTime = System.currentTimeMillis() - startTime;
+        System.out.println("Download finished in " + executionTime + " milliseconds");
         System.out.println("Download " + getDownloadFinishState());
     }
 
