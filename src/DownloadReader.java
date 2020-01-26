@@ -66,7 +66,6 @@ public class DownloadReader extends Thread{
         }
         catch (IOException e){
             m_returnedException = e;
-            System.exit(1);
         }
         finally{
             if (HTTPUrlConnection != null){
