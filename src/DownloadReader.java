@@ -3,13 +3,14 @@ import java.net.*;
 import java.util.ArrayList;
 import java.util.concurrent.BlockingQueue;
 
-public class DownloadReader implements Runnable{
+public class DownloadReader extends Thread{
 
     private int m_chunk;
     private ArrayList<ReadBatch> m_batchesToRead;
     private String m_downloadURL;
     private Metadata m_metadata;
     private BlockingQueue<WriteChunk> m_writingQueue;
+    Exception m_returnedException = null;
 
     DownloadReader(String i_fileToDownload, ArrayList<ReadBatch> i_batchesToDownload,
                    Metadata i_metadata, int i_chunkSize, BlockingQueue<WriteChunk> i_writingQueue){
@@ -38,7 +39,7 @@ public class DownloadReader implements Runnable{
                     endPoint = m_metadata.downloadSize;
                 }
                 System.out.println("[" + Thread.currentThread().getId() + "] Starting to Download Range ("
-                        + startingPoint + "-" + endPoint +") From:\n" + m_downloadURL);
+                                   + startingPoint + "-" + endPoint +") From:\n" + m_downloadURL);
                 HTTPUrlConnection.setRequestProperty("Range", "bytes=" + startingPoint + "-" + endPoint);
                 bufferedInputStream = new BufferedInputStream(HTTPUrlConnection.getInputStream());
                 int read;
@@ -64,7 +65,8 @@ public class DownloadReader implements Runnable{
             System.out.println("[" + Thread.currentThread().getId() + "] Finished Downloading.");
         }
         catch (IOException e){
-            System.err.println("[" + Thread.currentThread().getId() + "] " + e.toString());
+            m_returnedException = e;
+            System.exit(1);
         }
         finally{
             if (HTTPUrlConnection != null){

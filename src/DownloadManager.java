@@ -15,7 +15,7 @@ class DownloadManager {
     private Metadata m_metadata;
     private String m_metadataFile;
     private int m_maximumConcurrentConnections = 0;
-    private ArrayList<Thread> m_concurrentConnections;
+    private ArrayList<DownloadReader> m_concurrentConnections;
     private ArrayList<ArrayList<ReadBatch>> m_batchesToDownload;
     private ArrayList<String> m_downloadURLs;
     private String m_fileName;
@@ -102,6 +102,7 @@ class DownloadManager {
             m_metadata = new Metadata((int)downloadSize,numberOfChunks);
         }
         catch (IOException e){
+            //TODO: REMOVE
             System.out.print("ERROR IS ON DOWNLOAD MANAGER 105");
             System.err.println(e.getMessage());
         }
@@ -200,10 +201,10 @@ class DownloadManager {
         Thread writerThread = new Thread(new DownloadWriter(m_metadata, m_fileName, m_metadataFile, writingQueue));
         writerThread.start();
         for(ArrayList<ReadBatch> threadBatches : m_batchesToDownload){
-            Thread thread = new Thread(new DownloadReader(getRandomURL(), threadBatches, m_metadata,
-                    m_chunkSize, writingQueue));
-            m_concurrentConnections.add(thread);
-            thread.start();
+            DownloadReader reader = new DownloadReader(getRandomURL(), threadBatches, m_metadata,
+                    m_chunkSize, writingQueue);
+            m_concurrentConnections.add(reader);
+            reader.start();
         }
         int percentage;
         // Use set to print only "unique" percentages, or increments where the user will actually see progress
@@ -231,8 +232,14 @@ class DownloadManager {
     }
 
     private boolean downloadFinished(){
-        for(Thread runningThread : m_concurrentConnections){
-            if(runningThread.isAlive()){
+        for(DownloadReader reader : m_concurrentConnections){
+            // if one of the reader threads has an exception during its run, m_returnedException will not be null
+            // for that specific thread and we exit execution with the appropriate error message
+            if(reader.m_returnedException != null){
+                System.err.println("Reader [" + reader.getId() + "]: " + reader.m_returnedException.toString());
+                System.exit(1);
+            }
+            if(reader.isAlive()){
                 return false;
             }
         }
